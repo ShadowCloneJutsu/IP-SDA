@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Регистрация</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f0f2f5;
+        }
+
+        form {
+            background: white;
+            padding: 2em 3em;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            width: 360px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 1em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.6em;
+            margin-top: 0.3em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #ff3b3b;
+            outline: none;
+        }
+
+        .error {
+            display: block;
+            color: #d93025;
+            font-size: 0.85em;
+            margin-top: 0.2em;
+            min-height: 1em;
+        }
+
+        button {
+            width: 100%;
+            padding: 1em;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            background-color: #ff3b3b;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 1em;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #cc2a2a;
+        }
+
+        .message {
+            margin-top: 1em;
+            font-weight: bold;
+            text-align: center;
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+<form id="registerForm" novalidate>
+    <h2>Регистрация</h2>
+
+    <label>
+        Имя пользователя
+        <input type="text" name="username" id="username" required />
+        <span class="error" id="errorUsername"></span>
+    </label>
+
+    <label>
+        Электронная почта
+        <input type="email" name="email" id="email" required />
+        <span class="error" id="errorEmail"></span>
+    </label>
+
+    <label>
+        Телефон
+        <input type="tel" name="phone" id="phone" required />
+        <span class="error" id="errorPhone"></span>
+    </label>
+
+    <label>
+        Пароль
+        <input type="password" name="password" id="password" required />
+        <span class="error" id="errorPassword"></span>
+    </label>
+
+    <label>
+        Подтверждение пароля
+        <input type="password" name="passwordConfirm" id="passwordConfirm" required />
+        <span class="error" id="errorPasswordConfirm"></span>
+    </label>
+
+    <div class="message" id="message"></div>
+
+    <button type="submit" id="registerBtn">Регистрация</button>
+</form>
+
+<script>
+    const punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+    const STORAGE_KEY = "registeredEmails";
+
+    function getRegisteredEmails() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function isEmailRegistered(email) {
+        return getRegisteredEmails().some(
+            item => item.toLowerCase() === email.toLowerCase()
+        );
+    }
+
+    function validateUsername(username) {
+        if (username.length < 2 || username.length > 40) return false;
+
+        // Первая буква — заглавная русская или английская
+        if (!/^[A-ZА-ЯЁ]/.test(username)) return false;
+
+        // Остальные символы: буквы, пробелы, дефис
+        if (!/^[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё -]*$/.test(username)) return false;
+
+        // Дефис и пробел не должны быть последними
+        if (username.endsWith("-") || username.endsWith(" ")) return false;
+
+        return true;
+    }
+
+    function validateEmail(email) {
+        if (email.length < 5 || email.length > 61) return false;
+
+        // Только английские буквы, точки и @
+        if (!/^[A-Za-z.@]+$/.test(email)) return false;
+
+        const parts = email.split("@");
+        if (parts.length !== 2) return false;
+
+        const [local, domain] = parts;
+
+        if (!local || !domain) return false;
+        if (local.startsWith(".") || local.endsWith(".")) return false;
+        if (domain.startsWith(".") || domain.endsWith(".")) return false;
+        if (local.includes("..") || domain.includes("..")) return false;
+
+        // Должен заканчиваться на .com или .ru
+        if (!/\.(com|ru)$/.test(domain)) return false;
+
+        return true;
+    }
+
+    function validatePhone(phone) {
+        return /^\+7\d{10}$/.test(phone);
+    }
+
+    function validatePassword(password) {
+        if (password.length < 8 || password.length > 40) return false;
+
+        // Обязательно одна заглавная буква
+        if (!/[A-ZА-ЯЁ]/.test(password)) return false;
+
+        // Обязательно одна цифра
+        if (!/\d/.test(password)) return false;
+
+        // Только буквы, цифры и спецсимволы
+        for (const ch of password) {
+            const isLetterOrDigit = /[A-Za-zА-Яа-яЁё0-9]/.test(ch);
+            const isSpecial = punctuation.includes(ch);
+            if (!isLetterOrDigit && !isSpecial) return false;
+        }
+
+        return true;
+    }
+
+    document.getElementById("registerForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value;
+        const email = document.getElementById("email").value;
+        const phone = document.getElementById("phone").value;
+        const password = document.getElementById("password").value;
+        const passwordConfirm = document.getElementById("passwordConfirm").value;
+
+        const errorUsername = document.getElementById("errorUsername");
+        const errorEmail = document.getElementById("errorEmail");
+        const errorPhone = document.getElementById("errorPhone");
+        const errorPassword = document.getElementById("errorPassword");
+        const errorPasswordConfirm = document.getElementById("errorPasswordConfirm");
+        const message = document.getElementById("message");
+
+        errorUsername.textContent = "";
+        errorEmail.textContent = "";
+        errorPhone.textContent = "";
+        errorPassword.textContent = "";
+        errorPasswordConfirm.textContent = "";
+        message.textContent = "";
+
+        let valid = true;
+
+        if (username.trim() === "") {
+            errorUsername.textContent = "Имя пользователя — обязательное поле!";
+            valid = false;
+        } else if (!validateUsername(username)) {
+            errorUsername.textContent = "Имя: 2–40 символов, первая буква заглавная, разрешены буквы, пробелы и дефис.";
+            valid = false;
+        }
+
+        if (email.trim() === "") {
+            errorEmail.textContent = "Электронная почта — обязательное поле!";
+            valid = false;
+        } else if (!validateEmail(email)) {
+            errorEmail.textContent = "Неверный формат email! Пример: name@domain.com или name@domain.ru";
+            valid = false;
+        } else if (isEmailRegistered(email)) {
+            errorEmail.textContent = "На эту почту уже зарегистрирован пользователь!";
+            valid = false;
+        }
+
+        if (phone.trim() === "") {
+            errorPhone.textContent = "Телефон — обязательное поле!";
+            valid = false;
+        } else if (!validatePhone(phone)) {
+            errorPhone.textContent = "Телефон должен быть в формате +7XXXXXXXXXX (12 символов).";
+            valid = false;
+        }
+
+        if (password === "") {
+            errorPassword.textContent = "Пароль — обязательное поле!";
+            valid = false;
+        } else if (!validatePassword(password)) {
+            errorPassword.textContent = "Пароль: 8–40 символов, хотя бы одна заглавная буква и одна цифра.";
+            valid = false;
+        }
+
+        if (passwordConfirm === "") {
+            errorPasswordConfirm.textContent = "Подтверждение пароля — обязательное поле!";
+            valid = false;
+        } else if (passwordConfirm !== password) {
+            errorPasswordConfirm.textContent = "Пароли не совпадают!";
+            valid = false;
+        }
+
+        if (valid) {
+            const emails = getRegisteredEmails();
+            emails.push(email);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(emails));
+
+            message.textContent = "Вы зарегистрированы!";
+            message.style.color = "#28a745";
+        } else {
+            message.textContent = "Ошибка ввода!";
+            message.style.color = "#d93025";
+        }
+    });
+</script>
+
+</body>
+</html>
